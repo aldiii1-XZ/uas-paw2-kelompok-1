@@ -1,0 +1,394 @@
+{
+  "info": {
+    "name": "SiKlinik API - UAS PAW2 Kelompok 1",
+    "description": "Koleksi uji seluruh endpoint SiKlinik (Poli, Dokter, Pendaftaran). Jalankan berurutan: folder Health → Poli → Dokter → Pendaftaran.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.collectionVariables.set('tanggalHariIni', new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }));"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:3001/api" },
+    { "key": "poliId", "value": "" },
+    { "key": "dokterId", "value": "" },
+    { "key": "pendaftaranId", "value": "" },
+    { "key": "tanggalHariIni", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET Health",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('ok true', () => pm.expect(pm.response.json().ok).to.eql(true));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Poli",
+      "item": [
+        {
+          "name": "POST Poli (valid)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kode\": \"PM{{$timestamp}}\",\n  \"nama\": \"Poli Umum\",\n  \"deskripsi\": \"Pelayanan umum kampus\",\n  \"kapasitas\": 30\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/poli", "host": ["{{baseUrl}}"], "path": ["poli"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.collectionVariables.set('poliId', b._id);",
+                  "pm.test('kode uppercase', () => pm.expect(b.kode).to.match(/^PM/));",
+                  "pm.test('aktif default true', () => pm.expect(b.aktif).to.eql(true));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST Poli (tanpa nama) → 400",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"kode\": \"GAGAL\"\n}" },
+            "url": { "raw": "{{baseUrl}}/poli", "host": ["{{baseUrl}}"], "path": ["poli"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('ada detail validasi', () => pm.expect(pm.response.json().detail).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Semua Poli",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/poli?q=umum", "host": ["{{baseUrl}}"], "path": ["poli"], "query": [{ "key": "q", "value": "umum" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('hasil pencarian tidak kosong', () => pm.expect(pm.response.json()).to.be.an('array').that.is.not.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Poli by ID",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/poli/{{poliId}}", "host": ["{{baseUrl}}"], "path": ["poli", "{{poliId}}"] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('nama sesuai', () => pm.expect(pm.response.json().nama).to.eql('Poli Umum'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT Poli",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"kapasitas\": 45\n}" },
+            "url": { "raw": "{{baseUrl}}/poli/{{poliId}}", "host": ["{{baseUrl}}"], "path": ["poli", "{{poliId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('kapasitas berubah', () => pm.expect(pm.response.json().kapasitas).to.eql(45));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Poli ID tidak valid → 400",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/poli/123", "host": ["{{baseUrl}}"], "path": ["poli", "123"] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('400 Bad Request', () => pm.response.to.have.status(400));"], "type": "text/javascript" }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Dokter",
+      "item": [
+        {
+          "name": "POST Dokter (valid)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nama\": \"dr. Sari Wulandari\",\n  \"sip\": \"SIP{{$timestamp}}\",\n  \"spesialisasi\": \"Dokter Umum\",\n  \"poliId\": \"{{poliId}}\",\n  \"telepon\": \"081234567890\",\n  \"jadwal\": [{ \"hari\": \"senin\", \"mulai\": \"08:00\", \"selesai\": \"12:00\" }]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/dokter", "host": ["{{baseUrl}}"], "path": ["dokter"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.collectionVariables.set('dokterId', b._id);",
+                  "pm.test('jadwal tersimpan', () => pm.expect(b.jadwal[0].hari).to.eql('senin'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST Dokter (poli tidak ada) → 400",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nama\": \"dr. Gagal\",\n  \"sip\": \"SIP-X\",\n  \"spesialisasi\": \"Umum\"\n}" },
+            "url": { "raw": "{{baseUrl}}/dokter", "host": ["{{baseUrl}}"], "path": ["dokter"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('400 Bad Request', () => pm.response.to.have.status(400));"], "type": "text/javascript" }
+            }
+          ]
+        },
+        {
+          "name": "GET Dokter by Poli (populate)",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/dokter?poliId={{poliId}}", "host": ["{{baseUrl}}"], "path": ["dokter"], "query": [{ "key": "poliId", "value": "{{poliId}}" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('ada dokter', () => pm.expect(b).to.be.an('array').that.is.not.empty);",
+                  "pm.test('poli ter-populate', () => pm.expect(b[0].poliId.nama).to.eql('Poli Umum'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Dokter by ID",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/dokter/{{dokterId}}", "host": ["{{baseUrl}}"], "path": ["dokter", "{{dokterId}}"] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"], "type": "text/javascript" }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Pendaftaran",
+      "item": [
+        {
+          "name": "POST Pendaftaran (valid)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pasien\": {\n    \"nama\": \"Aldi Yonatan Rusnawan\",\n    \"nim\": \"2428240089\",\n    \"telepon\": \"08123456789\"\n  },\n  \"dokterId\": \"{{dokterId}}\",\n  \"keluhan\": \"Demam dan pusing\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/pendaftaran", "host": ["{{baseUrl}}"], "path": ["pendaftaran"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.collectionVariables.set('pendaftaranId', b._id);",
+                  "pm.test('nomor antrean >= 1', () => pm.expect(b.nomor).to.be.at.least(1));",
+                  "pm.test('status menunggu', () => pm.expect(b.status).to.eql('menunggu'));",
+                  "pm.test('kode terbentuk', () => pm.expect(b.kode).to.be.a('string').that.is.not.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST Pendaftaran (tanpa pasien) → 400",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"dokterId\": \"{{dokterId}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/pendaftaran", "host": ["{{baseUrl}}"], "path": ["pendaftaran"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('400 Bad Request', () => pm.response.to.have.status(400));"], "type": "text/javascript" }
+            }
+          ]
+        },
+        {
+          "name": "GET Pendaftaran (filter status + sort)",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/pendaftaran?status=menunggu&sort=nomor", "host": ["{{baseUrl}}"], "path": ["pendaftaran"], "query": [{ "key": "status", "value": "menunggu" }, { "key": "sort", "value": "nomor" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('semua berstatus menunggu', () => pm.expect(b.every((x) => x.status === 'menunggu')).to.eql(true));",
+                  "pm.test('nomor urut naik', () => pm.expect(b[0].nomor).to.be.at.most(b[b.length - 1].nomor));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Pendaftaran (filter tanggal)",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/pendaftaran?tanggal={{tanggalHariIni}}", "host": ["{{baseUrl}}"], "path": ["pendaftaran"], "query": [{ "key": "tanggal", "value": "{{tanggalHariIni}}" }] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('ada data hari ini', () => pm.expect(pm.response.json()).to.be.an('array').that.is.not.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Pendaftaran by ID (populate)",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/pendaftaran/{{pendaftaranId}}", "host": ["{{baseUrl}}"], "path": ["pendaftaran", "{{pendaftaranId}}"] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('dokter ter-populate', () => pm.expect(b.dokterId.nama).to.eql('dr. Sari Wulandari'));",
+                  "pm.test('poli ter-populate', () => pm.expect(b.poliId.nama).to.eql('Poli Umum'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH Status → selesai",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"selesai\"\n}" },
+            "url": { "raw": "{{baseUrl}}/pendaftaran/{{pendaftaranId}}/status", "host": ["{{baseUrl}}"], "path": ["pendaftaran", "{{pendaftaranId}}", "status"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('status selesai', () => pm.expect(b.status).to.eql('selesai'));",
+                  "pm.test('selesaiAt terisi', () => pm.expect(b.selesaiAt).to.be.a('string'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH Status tidak valid → 400",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"hilang\"\n}" },
+            "url": { "raw": "{{baseUrl}}/pendaftaran/{{pendaftaranId}}/status", "host": ["{{baseUrl}}"], "path": ["pendaftaran", "{{pendaftaranId}}", "status"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('400 Bad Request', () => pm.response.to.have.status(400));"], "type": "text/javascript" }
+            }
+          ]
+        },
+        {
+          "name": "DELETE Pendaftaran",
+          "request": { "method": "DELETE", "url": { "raw": "{{baseUrl}}/pendaftaran/{{pendaftaranId}}", "host": ["{{baseUrl}}"], "path": ["pendaftaran", "{{pendaftaranId}}"] } },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.sendRequest({ url: pm.collectionVariables.get('baseUrl') + '/pendaftaran/' + pm.collectionVariables.get('pendaftaranId'), method: 'GET' }, (err, res) => {",
+                  "  pm.test('sudah terhapus (404)', () => pm.expect(res.code).to.eql(404));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
