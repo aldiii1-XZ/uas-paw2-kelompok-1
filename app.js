@@ -28,6 +28,7 @@ app.use(async (req, res, next) => {
   }
 });
 
+app.use('/api/auth', require('./routes/auth'));
 app.use('/api/poli', require('./routes/poli'));
 app.use('/api/dokter', require('./routes/dokter'));
 app.use('/api/pendaftaran', require('./routes/pendaftaran'));

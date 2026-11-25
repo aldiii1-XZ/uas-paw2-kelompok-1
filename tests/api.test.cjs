@@ -10,12 +10,13 @@ let api;
 let poliId;
 let dokterId;
 let daftarId;
+let token;
 
 async function panggil(jalur, opsi = {}) {
-  const res = await fetch(api + jalur, {
-    ...opsi,
-    headers: { 'content-type': 'application/json', ...(opsi.headers || {}) },
-  });
+  const { tanpaToken, ...sisa } = opsi;
+  const headers = { 'content-type': 'application/json', ...(sisa.headers || {}) };
+  if (token && !tanpaToken) headers.authorization = `Bearer ${token}`;
+  const res = await fetch(api + jalur, { ...sisa, headers });
   return { status: res.status, body: await res.json() };
 }
 
@@ -28,6 +29,13 @@ before(async () => {
   server = app.listen(0);
   await once(server, 'listening');
   api = `http://127.0.0.1:${server.address().port}/api`;
+
+  const daftar = await fetch(`${api}/auth/register`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ nama: 'Admin Uji', email: 'admin@uji.local', password: 'rahasia123' }),
+  });
+  token = (await daftar.json()).token;
 });
 
 after(async () => {
@@ -41,6 +49,40 @@ test('SiKlinik API', async (t) => {
     const r = await panggil('/health');
     assert.equal(r.status, 200);
     assert.equal(r.body.ok, true);
+  });
+
+  await t.test('autentikasi JWT', async () => {
+    const dobel = await panggil('/auth/register', {
+      tanpaToken: true,
+      method: 'POST',
+      body: JSON.stringify({ nama: 'Admin Uji', email: 'admin@uji.local', password: 'rahasia123' }),
+    });
+    assert.equal(dobel.status, 409);
+
+    const salah = await panggil('/auth/login', {
+      tanpaToken: true,
+      method: 'POST',
+      body: JSON.stringify({ email: 'admin@uji.local', password: 'salahbanget' }),
+    });
+    assert.equal(salah.status, 401);
+
+    const masuk = await panggil('/auth/login', {
+      tanpaToken: true,
+      method: 'POST',
+      body: JSON.stringify({ email: 'admin@uji.local', password: 'rahasia123' }),
+    });
+    assert.equal(masuk.status, 200);
+    assert.ok(masuk.body.token);
+    assert.equal(masuk.body.user.password, undefined);
+
+    const tanpa = await panggil('/poli', { tanpaToken: true, method: 'POST', body: JSON.stringify({ kode: 'X', nama: 'X' }) });
+    assert.equal(tanpa.status, 401);
+
+    const palsu = await panggil('/auth/me', { tanpaToken: true, headers: { authorization: 'Bearer palsu' } });
+    assert.equal(palsu.status, 401);
+
+    const saya = await panggil('/auth/me');
+    assert.equal(saya.body.user.email, 'admin@uji.local');
   });
 
   await t.test('validasi poli gagal', async () => {
